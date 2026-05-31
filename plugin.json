@@ -1,0 +1,9 @@
+{
+  "name": "DATEV",
+  "description": "Exports invoices as a DATEV Buchungsstapel (EXTF format).",
+  "version": "1.0.0",
+  "url": "https://github.com/usebilly/datev-plugin",
+  "author": "Billy",
+  "authorUrl": "https://usebilly.app",
+  "fileExtension": "csv"
+}
