@@ -1,4 +1,5 @@
 {
+  "specVersion": 1,
   "name": "DATEV",
   "description": "Exports invoices as a DATEV Buchungsstapel (EXTF format).",
   "version": "1.0.0",
