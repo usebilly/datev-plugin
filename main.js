@@ -162,6 +162,18 @@ function buildDATEV(invoices, profile) {
 }
 
 exports.exportInvoices = function(invoices, profile) {
-	var sorted = helpers.sortInvoices(invoices, profile);
-	return buildDATEV(sorted, profile);
+	if (!invoices.length) throw new Error('Keine Rechnungen für den Export ausgewählt.');
+	var groups = {};
+	helpers.sortInvoices(invoices, profile).forEach(function(invoice) {
+		if (!/^20[0-9]{2}-[0-9]{2}-[0-9]{2}$/.test(invoice.date) ||
+			!Number.isFinite(Date.parse(invoice.date)) || new Date(invoice.date).toISOString().slice(0, 10) !== invoice.date)
+			throw new Error('Ungültiges Rechnungsdatum: ' + invoice.date);
+		var year = invoice.date.slice(0, 4);
+		if (!groups[year]) groups[year] = [];
+		groups[year].push(invoice);
+	});
+	return { files: Object.keys(groups).sort().map(function(year) {
+		return { name: 'EXTF_Buchungsstapel_' + year + '.csv',
+			content: buildDATEV(groups[year], profile) };
+	}) };
 };
