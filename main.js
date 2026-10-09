@@ -70,7 +70,7 @@ function buildBookingRows(invoice, profile, settings) {
 	var isCancellation = invoice.cancelledInvoiceId != null;
 	var sollHaben = isCancellation ? 'H' : 'S';
 	var invoiceNumber = helpers.invoiceNumber(invoice, profile).slice(0, 36);
-	var customerName = (invoice.recipient && invoice.recipient.name ? invoice.recipient.name : '').replace(/"/g, '').slice(0, 60);
+	var customerName = (invoice.recipient && invoice.recipient.name ? invoice.recipient.name : '').replace(/[\r\n]+/g, ' ').slice(0, 60);
 
 	var belegdatum = formatDatePart(invoice.date, 'ddMM');
 	var leistungsdatum = formatDatePart(invoice.serviceDateStart, 'ddMMyyyy');
@@ -121,8 +121,8 @@ function buildBookingRows(invoice, profile, settings) {
 			row[COL.konto] = settings.debtorAccount;
 			row[COL.gegenkonto] = gegenkonto;
 			row[COL.belegdatum] = belegdatum;
-			row[COL.belegfeld1] = '"' + invoiceNumber + '"';
-			row[COL.buchungstext] = '"' + customerName + '"';
+			row[COL.belegfeld1] = csvText(invoiceNumber);
+			row[COL.buchungstext] = csvText(customerName);
 			row[COL.festschreibung] = '0';
 			row[COL.leistungsdatum] = leistungsdatum;
 
@@ -160,6 +160,10 @@ function buildDATEV(invoices, profile, settings) {
 	return [header, COLUMN_HEADERS].concat(rows).join('\r\n');
 }
 
+function csvText(value) {
+	return '"' + value.replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+}
+
 exports.exportInvoices = function(invoices, profile, settings) {
 	if (!settings) throw new Error('Dieser DATEV-Export benötigt eine Billy-Version mit Export-Einstellungen und mehreren Exportdateien.');
 	if (!/^[1-9][0-9]{3,6}$/.test(settings.advisorNumber) || Number(settings.advisorNumber) < 1001)
@@ -180,6 +184,6 @@ exports.exportInvoices = function(invoices, profile, settings) {
 	});
 	return { files: Object.keys(groups).sort().map(function(year) {
 		return { name: 'EXTF_Buchungsstapel_' + year + '.csv',
-			content: buildDATEV(groups[year], profile, settings) };
+			content: '\uFEFF' + buildDATEV(groups[year], profile, settings) };
 	}) };
 };
