@@ -6,5 +6,20 @@
   "url": "https://github.com/usebilly/datev-plugin",
   "author": "Billy",
   "authorUrl": "https://usebilly.app",
-  "fileExtension": "csv"
+  "fileExtension": "csv",
+  "exportSettings": [
+    {
+      "key": "advisorNumber",
+      "label": "DATEV-Beraternummer"
+    },
+    {
+      "key": "clientNumber",
+      "label": "DATEV-Mandantennummer"
+    },
+    {
+      "key": "debtorAccount",
+      "label": "Sammeldebitor (SKR03)",
+      "defaultValue": "10000"
+    }
+  ]
 }

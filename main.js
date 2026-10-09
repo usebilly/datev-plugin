@@ -1,6 +1,5 @@
 var helpers = require('./helpers.js');
 
-var DEBITOR_ACCOUNT = '10000';
 var SACHKONTENLAENGE = 4;
 var COLUMN_COUNT = 125;
 
@@ -63,11 +62,11 @@ function formatTimestamp(date) {
 	return pad(date.getFullYear(), 4) + pad(date.getMonth() + 1, 2) + pad(date.getDate(), 2) + pad(date.getHours(), 2) + pad(date.getMinutes(), 2) + pad(date.getSeconds(), 2) + '000';
 }
 
-function buildHeader(currency, fiscalYearStart, periodStart, periodEnd, timestamp) {
-	return ['"EXTF"', '700', '21', '"Buchungsstapel"', '13', formatTimestamp(timestamp), '', '"BI"', '"Billy"', '', '', '', formatDatePart(fiscalYearStart, 'yyyyMMdd'), String(SACHKONTENLAENGE), formatDatePart(periodStart, 'yyyyMMdd'), formatDatePart(periodEnd, 'yyyyMMdd'), '"Billy Export"', '', '1', '', '0', '"' + currency + '"', '', '', '', '', '', '', '', ''].join(';');
+function buildHeader(currency, fiscalYearStart, periodStart, periodEnd, timestamp, settings) {
+	return ['"EXTF"', '700', '21', '"Buchungsstapel"', '13', formatTimestamp(timestamp), '', '"BI"', '"Billy"', '', settings.advisorNumber, settings.clientNumber, formatDatePart(fiscalYearStart, 'yyyyMMdd'), String(SACHKONTENLAENGE), formatDatePart(periodStart, 'yyyyMMdd'), formatDatePart(periodEnd, 'yyyyMMdd'), '"Billy Export"', '', '1', '', '0', '"' + currency + '"', '', '', '', '', '', '', '', ''].join(';');
 }
 
-function buildBookingRows(invoice, profile) {
+function buildBookingRows(invoice, profile, settings) {
 	var isCancellation = invoice.cancelledInvoiceId != null;
 	var sollHaben = isCancellation ? 'H' : 'S';
 	var invoiceNumber = helpers.invoiceNumber(invoice, profile).slice(0, 36);
@@ -119,7 +118,7 @@ function buildBookingRows(invoice, profile) {
 
 			row[COL.umsatz] = formatGermanAmount(Math.abs(grossAmount));
 			row[COL.sollHaben] = '"' + sollHaben + '"';
-			row[COL.konto] = DEBITOR_ACCOUNT;
+			row[COL.konto] = settings.debtorAccount;
 			row[COL.gegenkonto] = gegenkonto;
 			row[COL.belegdatum] = belegdatum;
 			row[COL.belegfeld1] = '"' + invoiceNumber + '"';
@@ -138,7 +137,7 @@ function buildBookingRows(invoice, profile) {
 		});
 }
 
-function buildDATEV(invoices, profile) {
+function buildDATEV(invoices, profile, settings) {
 	var now = new Date();
 	var dates = invoices
 		.map(function(invoice) {
@@ -150,10 +149,10 @@ function buildDATEV(invoices, profile) {
 	var periodEnd = dates.length > 0 ? dates[dates.length - 1] : today;
 	var fiscalYearStart = periodStart.slice(0, 4) + '-01-01';
 
-	var header = buildHeader(profile.currency, fiscalYearStart, periodStart, periodEnd, now);
+	var header = buildHeader(profile.currency, fiscalYearStart, periodStart, periodEnd, now, settings);
 	var rows = [];
 	invoices.forEach(function(invoice) {
-		buildBookingRows(invoice, profile).forEach(function(row) {
+		buildBookingRows(invoice, profile, settings).forEach(function(row) {
 			rows.push(row);
 		});
 	});
@@ -161,7 +160,14 @@ function buildDATEV(invoices, profile) {
 	return [header, COLUMN_HEADERS].concat(rows).join('\r\n');
 }
 
-exports.exportInvoices = function(invoices, profile) {
+exports.exportInvoices = function(invoices, profile, settings) {
+	if (!settings) throw new Error('Dieser DATEV-Export benötigt eine Billy-Version mit Export-Einstellungen und mehreren Exportdateien.');
+	if (!/^[1-9][0-9]{3,6}$/.test(settings.advisorNumber) || Number(settings.advisorNumber) < 1001)
+		throw new Error('Bitte eine gültige DATEV-Beraternummer eingeben (1001–9999999).');
+	if (!/^[1-9][0-9]{0,4}$/.test(settings.clientNumber))
+		throw new Error('Bitte eine gültige DATEV-Mandantennummer eingeben (1–99999).');
+	if (!/^[1-6][0-9]{4}$/.test(settings.debtorAccount))
+		throw new Error('Bitte ein gültiges fünfstelliges Debitorenkonto eingeben (10000–69999).');
 	if (!invoices.length) throw new Error('Keine Rechnungen für den Export ausgewählt.');
 	var groups = {};
 	helpers.sortInvoices(invoices, profile).forEach(function(invoice) {
@@ -174,6 +180,6 @@ exports.exportInvoices = function(invoices, profile) {
 	});
 	return { files: Object.keys(groups).sort().map(function(year) {
 		return { name: 'EXTF_Buchungsstapel_' + year + '.csv',
-			content: buildDATEV(groups[year], profile) };
+			content: buildDATEV(groups[year], profile, settings) };
 	}) };
 };
